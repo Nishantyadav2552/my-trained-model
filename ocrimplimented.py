@@ -1,28 +1,23 @@
 from ultralytics import YOLO
 import cv2
 import pytesseract
-import numpy as np
+import re
 
-# Path to Tesseract executable (adjust this if needed)
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-
-# Load trained YOLOv8 model
 model = YOLO("best.pt")
+results = model("image.png")
+image = cv2.imread("image.png")
 
-# Open webcam
-cap = cv2.VideoCapture(0)
-if not cap.isOpened():
-    print("Error: Cannot open webcam.")
-    exit()
+for i, box in enumerate(results[0].boxes.xyxy):
+    x1, y1, x2, y2 = map(int, box[:4])
+    plate_crop = image[y1:y2, x1:x2]
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
+    gray = cv2.cvtColor(plate_crop, cv2.COLOR_BGR2GRAY)
+    text = pytesseract.image_to_string(gray, config='--psm 7')
+    clean_text = re.sub(r'[^A-Z0-9]', '', text.upper())
 
-    # Run YOLOv8 on the frame
-    results = model(frame, verbose=False)
+    print(f"Plate {i+1}: {clean_text}")
 
-    # Get detections
-    detections = results[0].boxes
-   
+    cv2.imshow(f"Plate {i+1}", plate_crop)
+    cv2.waitKey(0)
+
+cv2.destroyAllWindows()
